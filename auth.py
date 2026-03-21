@@ -1,4 +1,4 @@
-"""
+fix: auth compatible Streamlit Cloud (st.secrets) et local (yaml)"""
 auth.py
 -------
 Module d'authentification pour le dashboard SIRENE.
