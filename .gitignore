@@ -1,0 +1,27 @@
+# Données brutes (trop lourdes pour Git)
+data/
+*.parquet
+*.csv
+*.zip
+
+# Authentification — NE JAMAIS versionner
+auth_config.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+.venv
+venv/
+env/
+
+# VS Code
+.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
