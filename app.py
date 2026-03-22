@@ -166,31 +166,15 @@ def page_structure(data, sects):
         fig2.update_traces(texttemplate="<b>%{label}</b><br>%{value:,.0f}",textfont_size=11)
         fig2.update_layout(margin=dict(t=10,l=0,r=0,b=0),height=340,paper_bgcolor="white")
         st.plotly_chart(fig2,use_container_width=True)
-    st.markdown("---")
-    st.subheader("Quels secteurs concentrent le plus d'entreprises ?")
-    st.caption("Pareto : tries par volume. Ligne rouge = seuil 80%.")
-    sg=sa_f.groupby("grand_secteur")["nb"].sum().reset_index().sort_values("nb",ascending=False)
-    sg["cumul"]=sg["nb"].cumsum()/sg["nb"].sum()*100
-    fig3=go.Figure()
-    fig3.add_bar(x=sg["grand_secteur"],y=sg["nb"],
-        marker_color=[COLOR_MAP.get(s,"#95a5a6") for s in sg["grand_secteur"]],name="Nb actives",yaxis="y")
-    fig3.add_scatter(x=sg["grand_secteur"],y=sg["cumul"],name="Cumul %",
-        mode="lines+markers",line=dict(color="#007ACC",width=2),yaxis="y2")
-    fig3.add_hline(y=80,line_dash="dash",line_color="#e74c3c",annotation_text="80%",yref="y2")
-    fig3.update_layout(plot_bgcolor="white",paper_bgcolor="white",height=320,
-        margin=dict(t=20,b=20,l=8,r=8),font=dict(color="#333333"),
-        yaxis=dict(title="Nb entreprises",showgrid=False),
-        yaxis2=dict(title="Cumul %",overlaying="y",side="right",range=[0,110],showgrid=False),
-        legend=dict(orientation="h",yanchor="bottom",y=1.02),
-        xaxis=dict(tickangle=15,showgrid=False))
-    st.plotly_chart(fig3,use_container_width=True)
+
     st.markdown("---")
     st.subheader("Top 20 divisions NAF les plus representees")
     st.caption("Code NAF a 2 chiffres. Les 20 activites les plus frequentes.")
     top20=data["naf_detail"][data["naf_detail"]["grand_secteur"].isin(sects)].nlargest(20,"nb")
     fig4=px.bar(top20,x="nb",y="div_naf",orientation="h",color="grand_secteur",
         color_discrete_map=COLOR_MAP,labels={"div_naf":"Division NAF","nb":"Nb actives","grand_secteur":"Secteur"})
-    graphique(fig4,500); fig4.update_layout(yaxis=dict(showgrid=False))
+    fig4.update_traces(texttemplate="%{x:,.0f}", textposition="outside")
+    graphique(fig4,620); fig4.update_layout(yaxis=dict(showgrid=False, tickfont=dict(size=10)), xaxis=dict(showgrid=True, gridcolor="#eeeeee"))
     st.plotly_chart(fig4,use_container_width=True)
 
 
@@ -229,6 +213,7 @@ def page_survie(data):
 
 
 def page_carte(data, sects):
+    st.caption("**Nombre d'etablissements** : total des etablissements actifs (sieges + etablissements secondaires) declares dans le departement. **Densite sectorielle (%)** : part du secteur choisi dans le total des etablissements du departement — indique la specialisation economique locale.")
     dept=data["departements"]; dept_f=dept[dept["grand_secteur"].isin(sects)].copy()
     col1,col2=st.columns([2,1])
     with col1: mode=st.radio("Afficher",["Nombre d'etablissements","Densite sectorielle (%)"],horizontal=True,key="carte_mode")
