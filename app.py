@@ -20,7 +20,7 @@ COULEURS_NAF = {"Identique":"#27ae60","Recode":"#f39c12","Fusion":"#e74c3c","Div
 
 @st.cache_data(ttl=86_400, show_spinner=False)
 def charger_donnees():
-    req = ["creations_mensuel","stock_actives","formes_juridiques","employeurs","departements","survie","naf_detail"]
+    req = ["creations_mensuel","stock_actives","formes_juridiques","employeurs","taille_effectifs","departements","survie","naf_detail"]
     manquants = [n for n in req if not (DATA_DIR/f"{n}.parquet").exists()]
     if manquants: return None, manquants
     return {n: pd.read_parquet(DATA_DIR/f"{n}.parquet") for n in req}, []
@@ -164,13 +164,20 @@ def page_structure(data, sects):
         st.plotly_chart(fig,use_container_width=True)
     with col2:
         st.subheader("Quelle est leur taille ?")
-        st.caption("Par tranche d'effectif salarie declare.")
+        st.caption("Effectifs declares au siege (StockEtablissement, declarations < 3 ans). Plus representatif que la version precedente.")
+        taille=data["taille_effectifs"][data["taille_effectifs"]["grand_secteur"].isin(sects)]
+        taille_g=taille.groupby("libelle_taille")["nb"].sum().reset_index()
         ordre={v:i for i,v in enumerate(ORDRE_TAILLE)}
-        tg=sa_f.groupby("libelle_taille")["nb"].sum().reset_index()
-        tg["ord"]=tg["libelle_taille"].map(ordre).fillna(99); tg=tg.sort_values("ord")
-        fig2=px.treemap(tg,path=["libelle_taille"],values="nb",color="nb",color_continuous_scale="Blues")
-        fig2.update_traces(texttemplate="<b>%{label}</b><br>%{value:,.0f}",textfont_size=11)
-        fig2.update_layout(template="plotly_white",margin=dict(t=10,l=0,r=0,b=0),height=340,paper_bgcolor="white",font=dict(color="#222222"))
+        taille_g["ord"]=taille_g["libelle_taille"].map(ordre).fillna(99)
+        taille_g=taille_g.sort_values("ord")
+        taille_g["pct"]=(taille_g["nb"]/taille_g["nb"].sum()*100).round(1)
+        fig2=px.bar(taille_g,x="nb",y="libelle_taille",orientation="h",
+            color="libelle_taille",color_discrete_sequence=px.colors.sequential.Blues[2:],
+            text=taille_g["pct"].map(lambda x: f"{x:.1f}%"),
+            labels={"libelle_taille":"Tranche","nb":"Nb entreprises"})
+        fig2.update_traces(textposition="outside")
+        graphique(fig2,420)
+        fig2.update_layout(showlegend=False,yaxis=dict(showgrid=False,categoryorder="array",categoryarray=ORDRE_TAILLE[::-1]))
         st.plotly_chart(fig2,use_container_width=True)
 
     st.markdown("---")
