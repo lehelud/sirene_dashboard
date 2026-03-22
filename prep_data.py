@@ -7,7 +7,142 @@ Colonnes disponibles dans StockUniteLegale :
   activitePrincipaleUniteLegale, categorieJuridiqueUniteLegale (int64),
   trancheEffectifsUniteLegale
 NOTE: dateCessationUniteLegale N'EXISTE PAS dans ce fichier
+""""""
+prep_data.py - Preparation donnees SIRENE
+Fix: mapping NAF via les 2 premiers chiffres du code division
+Ex: '62.01Z' -> div 62 -> section J -> Services aux entreprises
 """
+import io
+import datetime
+from pathlib import Path
+
+import pandas as pd
+import requests
+from tqdm import tqdm
+
+DATA_DIR = Path("data")
+URL_UL = "https://object.files.data.gouv.fr/data-pipeline-open/siren/stock/StockUniteLegale_utf8.parquet"
+
+COLS_UL = [
+    "siren",
+    "dateCreationUniteLegale",
+    "etatAdministratifUniteLegale",
+    "activitePrincipaleUniteLegale",
+    "categorieJuridiqueUniteLegale",
+    "trancheEffectifsUniteLegale",
+]
+
+TRANCHES = {
+    "NN": "Non employeur", "00": "0 salarie", "01": "1-2", "02": "3-5",
+    "03": "6-9", "11": "10-19", "12": "20-49", "21": "50-99",
+    "22": "100-199", "31": "200-249", "32": "250-499", "41": "500-999",
+    "42": "1000-1999", "51": "2000-4999", "52": "5000-9999", "53": "10000+",
+}
+
+
+def div_to_secteur(div_str):
+    try:
+        d = int(div_str)
+    except (ValueError, TypeError):
+        return "Autres"
+    if 1 <= d <= 3:   return "Agriculture"
+    if 5 <= d <= 39:  return "Industrie"
+    if 41 <= d <= 43: return "Construction"
+    if 45 <= d <= 56: return "Commerce / Transport / HCR"
+    if 58 <= d <= 66: return "Services aux entreprises"
+    if 68 <= d <= 75: return "Services aux entreprises"
+    if 77 <= d <= 82: return "Services aux entreprises"
+    if 84 <= d <= 88: return "Services publics / Sante"
+    return "Autres"
+
+
+def telecharger(url, label):
+    print(f"\n Telechargement {label}...")
+    r = requests.get(url, stream=True, timeout=300)
+    r.raise_for_status()
+    total = int(r.headers.get("content-length", 0))
+    buf = io.BytesIO()
+    with tqdm(total=total, unit="B", unit_scale=True, desc=label) as bar:
+        for chunk in r.iter_content(chunk_size=8 * 1024 * 1024):
+            buf.write(chunk)
+            bar.update(len(chunk))
+    buf.seek(0)
+    return buf
+
+
+def preparer(df):
+    print(" Preparation...")
+    df["cat_jur"] = df["categorieJuridiqueUniteLegale"].fillna(0).astype(int)
+    df = df[~df["cat_jur"].between(7000, 9999)].copy()
+    df["dateCreation"] = pd.to_datetime(df["dateCreationUniteLegale"], errors="coerce")
+    df["annee"] = df["dateCreation"].dt.year.astype("Int64")
+    df["mois"] = df["dateCreation"].dt.to_period("M").astype(str)
+    naf = df["activitePrincipaleUniteLegale"].astype(str).str.strip()
+    div = naf.str.replace(".", "", regex=False).str.extract(r"^(\d{2})", expand=False)
+    df["grand_secteur"] = div.map(div_to_secteur).fillna("Autres")
+    df["libelle_taille"] = (
+        df["trancheEffectifsUniteLegale"].astype(str)
+        .map(TRANCHES).fillna("Non renseigne")
+    )
+    print(f" {len(df):,} entreprises secteur marchand")
+    print(" Repartition secteurs:")
+    print(df["grand_secteur"].value_counts().to_string())
+    return df
+
+
+def main():
+    print("=" * 60)
+    print("  SIRENE Dashboard - Preparation des donnees")
+    print("=" * 60)
+    DATA_DIR.mkdir(exist_ok=True)
+
+    buf = telecharger(URL_UL, "StockUniteLegale (parquet)")
+    print(" Lecture parquet...")
+    df_raw = pd.read_parquet(buf, columns=COLS_UL)
+    print(f" {len(df_raw):,} lignes chargees")
+
+    df = preparer(df_raw)
+    del df_raw
+
+    now = datetime.datetime.now().year
+
+    creations = (
+        df[df["annee"].between(2010, now)]
+        .groupby(["annee", "grand_secteur"], dropna=False)
+        .size().reset_index(name="nb_creations")
+    )
+    cessations = (
+        df[(df["etatAdministratifUniteLegale"] == "C") & df["annee"].notna()]
+        .groupby(["mois", "annee", "grand_secteur"])
+        .size().reset_index(name="nb_cessations")
+        .rename(columns={"mois": "annee_mois"})
+    )
+    naf_agg = (
+        df[df["etatAdministratifUniteLegale"] == "A"]
+        .groupby("grand_secteur").size().reset_index(name="nb_entreprises")
+    )
+    taille_agg = (
+        df[df["etatAdministratifUniteLegale"] == "A"]
+        .groupby(["libelle_taille", "grand_secteur"])
+        .size().reset_index(name="nb_entreprises")
+    )
+
+    for nom, d in [
+        ("creations_annee.parquet", creations),
+        ("cessations_mois.parquet", cessations),
+        ("repartition_naf.parquet", naf_agg),
+        ("repartition_taille.parquet", taille_agg),
+    ]:
+        p = DATA_DIR / nom
+        d.to_parquet(p, index=False)
+        print(f" {nom}: {len(d):,} lignes ({p.stat().st_size // 1024} Ko)")
+
+    print("\n Termine ! Lance : python -m streamlit run app.py")
+
+
+if __name__ == "__main__":
+    main()
+
 
 import io
 import sys
