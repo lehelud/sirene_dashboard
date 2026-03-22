@@ -59,11 +59,6 @@ def code_to_forme(cat):
     except: return "Autre"
 
 def statut_employeur(tranche):
-    # 4 categories selon doc INSEE
-    # code NN  -> non-employeur ou absence de declaration
-    # code 00  -> employe dans l-annee, zero effectif au 31/12
-    # codes positifs -> employeur avec effectif connu
-    # vide/null -> donnee non renseignee
     t = str(tranche).strip() if pd.notna(tranche) else ""
     if t == "":    return "Non renseigne"
     if t == "NN":  return "Non-employeur / NC"
@@ -126,12 +121,17 @@ def main():
 
     print("\n  Agregations...")
 
+    # Fix memoire : convertir annee en int avant groupby pour eviter Int64 nullable
+    _cm = df[df["annee"].between(2010, now)].copy()
+    _cm = _cm.dropna(subset=["mois", "grand_secteur"])
+    _cm["annee"] = _cm["annee"].astype(int)
     sauver(
-        df[df["annee"].between(2010, now)]
-          .groupby(["mois","annee","grand_secteur"], dropna=False)
-          .size().reset_index(name="nb_creations"),
+        _cm.groupby(["mois", "annee", "grand_secteur"])
+           .size().reset_index(name="nb_creations"),
         "creations_mensuel.parquet"
     )
+    del _cm
+
     sauver(
         actives.groupby(["grand_secteur","forme_jur","libelle_taille","div_naf"])
                .agg(nb=("siren","count"), nb_ess=("est_ess","sum"))
@@ -142,17 +142,20 @@ def main():
         actives.groupby(["forme_jur","grand_secteur"]).size().reset_index(name="nb"),
         "formes_juridiques.parquet"
     )
+
     emp = actives.groupby(["grand_secteur","statut_employeur"])\
                  .size().reset_index(name="nb")
     tot = actives.groupby("grand_secteur").size().reset_index(name="nb_total")
     emp = emp.merge(tot, on="grand_secteur")
     emp["pct"] = (emp["nb"] / emp["nb_total"] * 100).round(1)
     sauver(emp, "employeurs.parquet")
+
     sauver(
         actives.groupby(["div_naf","grand_secteur"]).size().reset_index(name="nb")
                .sort_values("nb", ascending=False),
         "naf_detail.parquet"
     )
+
     cohortes = []
     for annee_c in range(max(2010, now-15), now):
         cohort = df[df["annee"] == annee_c]; total = len(cohort)
