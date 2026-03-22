@@ -30,21 +30,26 @@ def fmt(n): return f"{int(n):,}".replace(",","\u202f")
 
 
 def graphique(fig, h=400):
-    """Style sobre identique a bornes_recharges : fond blanc, pas de grille, textes visibles."""
+    """Style sobre : fond blanc force, textes noirs forces, compatible theme sombre Streamlit."""
     fig.update_layout(
+        template="plotly_white",
         height=h,
         margin=dict(t=40, b=30, l=10, r=10),
         plot_bgcolor="white",
         paper_bgcolor="white",
-        font=dict(color="#333333", size=12),
+        font=dict(color="#222222", size=12),
         showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02,
-                    font=dict(size=11, color="#333333")),
+                    font=dict(size=11, color="#222222"),
+                    bgcolor="white"),
         xaxis=dict(showgrid=False, linecolor="#cccccc", linewidth=1,
-                   tickfont=dict(color="#333333")),
+                   tickfont=dict(color="#222222"), title_font=dict(color="#222222")),
         yaxis=dict(showgrid=False, linecolor="#cccccc", linewidth=1,
-                   tickfont=dict(color="#333333")),
+                   tickfont=dict(color="#222222"), title_font=dict(color="#222222")),
     )
+    # Forcer la couleur sur tous les axes supplementaires (yaxis2, xaxis2, etc.)
+    for ax in ['xaxis2','yaxis2','xaxis3','yaxis3']:
+        fig.update_layout(**{ax: dict(tickfont=dict(color="#222222"), title_font=dict(color="#222222"))})
     return fig
 
 
@@ -75,7 +80,7 @@ def page_vue_ensemble(data, sects):
         color_discrete_map=COLOR_MAP,custom_data=["pct"])
     fig.update_traces(texttemplate="<b>%{label}</b><br>%{value:,.0f}<br>%{customdata[0]:.1f}%",
         textfont_size=12,marker_line_width=2,marker_line_color="#fff")
-    fig.update_layout(margin=dict(t=10,l=0,r=0,b=0),height=400,paper_bgcolor="white")
+    fig.update_layout(template="plotly_white",margin=dict(t=10,l=0,r=0,b=0),height=400,paper_bgcolor="white",font=dict(color="#222222"))
     st.plotly_chart(fig,use_container_width=True)
     st.markdown("---")
     st.subheader("Statut employeur declare dans SIRENE")
@@ -141,8 +146,8 @@ def page_tendances(data, sects):
     hg=cm_f.groupby(["annee","grand_secteur"])["nb_creations"].sum().reset_index(); hg=hg[hg["annee"]>=2010]
     pv=hg.pivot(index="grand_secteur",columns="annee",values="nb_creations").fillna(0)
     fig4=px.imshow(pv,color_continuous_scale="Blues",labels={"color":"Nb creations"})
-    fig4.update_layout(plot_bgcolor="white",paper_bgcolor="white",height=280,
-        margin=dict(t=10,b=20,l=10,r=10),font=dict(color="#333333"))
+    fig4.update_layout(template="plotly_white",plot_bgcolor="white",paper_bgcolor="white",height=280,
+        margin=dict(t=10,b=20,l=10,r=10),font=dict(color="#222222"))
     st.plotly_chart(fig4,use_container_width=True)
 
 
@@ -155,7 +160,7 @@ def page_structure(data, sects):
         fig=px.pie(fj_g,values="nb",names="forme_jur",hole=0.45,
             color_discrete_sequence=["#007ACC","#1AA6A6","#2ecc71","#e74c3c","#9b59b6","#f39c12"])
         fig.update_traces(textposition="inside",textinfo="percent+label",textfont_size=11)
-        fig.update_layout(paper_bgcolor="white",showlegend=False,height=340,margin=dict(t=10,b=10))
+        fig.update_layout(template="plotly_white",paper_bgcolor="white",showlegend=False,height=340,margin=dict(t=10,b=10),font=dict(color="#222222"))
         st.plotly_chart(fig,use_container_width=True)
     with col2:
         st.subheader("Quelle est leur taille ?")
@@ -165,7 +170,7 @@ def page_structure(data, sects):
         tg["ord"]=tg["libelle_taille"].map(ordre).fillna(99); tg=tg.sort_values("ord")
         fig2=px.treemap(tg,path=["libelle_taille"],values="nb",color="nb",color_continuous_scale="Blues")
         fig2.update_traces(texttemplate="<b>%{label}</b><br>%{value:,.0f}",textfont_size=11)
-        fig2.update_layout(margin=dict(t=10,l=0,r=0,b=0),height=340,paper_bgcolor="white")
+        fig2.update_layout(template="plotly_white",margin=dict(t=10,l=0,r=0,b=0),height=340,paper_bgcolor="white",font=dict(color="#222222"))
         st.plotly_chart(fig2,use_container_width=True)
 
     st.markdown("---")
@@ -197,7 +202,7 @@ def page_survie(data):
         textfont=dict(color="#333333",size=12),
         line=dict(color="#007ACC",width=3),marker=dict(size=10,color="#007ACC"),
         fill="tozeroy",fillcolor="rgba(0,122,204,.1)")
-    fig2.update_layout(plot_bgcolor="white",paper_bgcolor="white",font=dict(color="#333333"),
+    fig2.update_layout(template="plotly_white",plot_bgcolor="white",paper_bgcolor="white",font=dict(color="#222222"),
         xaxis=dict(title="Annees apres creation",showgrid=False),
         yaxis=dict(title="% encore actives",range=[0,115],showgrid=False),
         height=380,margin=dict(t=20,b=20,l=8,r=8))
@@ -280,7 +285,7 @@ def page_naf(data):
         dt=df_ch.groupby("type").agg(nb_div=("div_2008","count"),nb_ent=("nb_entreprises","sum")).reset_index()
         fig=px.treemap(dt,path=["type"],values="nb_ent",color="type",color_discrete_map=COULEURS_NAF,custom_data=["nb_div"])
         fig.update_traces(texttemplate="<b>%{label}</b><br>%{value:,.0f} entreprises<br>%{customdata[0]} divisions",textfont_size=12)
-        fig.update_layout(margin=dict(t=10,l=0,r=0,b=0),height=300,paper_bgcolor="white")
+        fig.update_layout(template="plotly_white",margin=dict(t=10,l=0,r=0,b=0),height=300,paper_bgcolor="white",font=dict(color="#222222"))
         st.plotly_chart(fig,use_container_width=True)
     with col2:
         st.subheader("Divisions les plus impactees")
