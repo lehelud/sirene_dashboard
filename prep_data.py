@@ -163,21 +163,23 @@ def main():
     df = enrichir_ul(df_raw)
     del df_raw
 
-    actives = df[df["etatAdministratifUniteLegale"] == "A"]
+    actives = df[df["etatAdministratifUniteLegale"] == "A"][["siren","grand_secteur","forme_jur","div_naf","est_ess"]].copy()
     print(f"  {len(actives):,} actives | {len(df):,} total secteur marchand")
 
     # 2. Agregations depuis UL
     print("\n  Agregations UL...")
 
-    _cm = df[df["annee"].between(2010, now)].copy()
-    _cm = _cm.dropna(subset=["mois", "grand_secteur"])
+    mask_cm = df["annee"].between(2010, now) & df["mois"].notna() & df["grand_secteur"].notna()
+    _cm = df.loc[mask_cm, ["mois","annee","grand_secteur"]].reset_index(drop=True)
     _cm["annee"] = _cm["annee"].astype(int)
+    del mask_cm
     sauver(
         _cm.groupby(["mois", "annee", "grand_secteur"])
            .size().reset_index(name="nb_creations"),
         "creations_mensuel.parquet"
     )
     del _cm
+    import gc; gc.collect()
 
     sauver(
         actives.groupby(["grand_secteur", "forme_jur", "div_naf"])
@@ -214,6 +216,8 @@ def main():
                 "nb_total": total, "nb_actives": encore,
             })
     sauver(pd.DataFrame(cohortes), "survie.parquet")
+    del df
+    import gc; gc.collect()
 
     siren_actifs = set(actives["siren"].unique())
     del df, actives
