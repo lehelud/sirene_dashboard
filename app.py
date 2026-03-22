@@ -84,7 +84,7 @@ def page_vue_ensemble(data, sects):
     st.plotly_chart(fig,use_container_width=True)
     st.markdown("---")
     st.subheader("Statut employeur declare dans SIRENE")
-    st.warning("**Limite de la source** : `trancheEffectifsUniteLegale` dans SIRENE est mise a jour avec plusieurs annees de retard. Le code NN regroupe non-employeurs ET entreprises dont l'effectif n'est pas encore declare. Ces chiffres sous-estiment le nombre reel d'employeurs. Pour les effectifs fiables, se referer aux donnees URSSAF/DSN.")
+    st.warning("**Source v3** : effectifs lus depuis les sieges sociaux (StockEtablissement), declarations des 3 dernieres annees uniquement. Plus representatif. Le code NN regroupe non-employeurs ET entreprises recentes. Pour les effectifs certifies, voir donnees URSSAF/DSN.")
     st.caption("Part des entreprises actives par statut d'effectif declare dans SIRENE.")
     emp_f=emp[emp["grand_secteur"].isin(sects)].copy()
     ordre_emp=["Employeur","Employeur occasionnel","Non-employeur / NC","Non renseigne"]
