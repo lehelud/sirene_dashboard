@@ -1,6 +1,8 @@
 # Dashboard SIRENE — Entreprises du secteur marchand
 
 Tableau de bord interactif d'analyse des entreprises françaises, construit avec **Streamlit** et alimenté par la **Base SIRENE** (data.gouv.fr).
+Les données exposées n'ont pas toutes été comparées à des sources officielles, le dashboard peut donc comporter des erreurs.
+Lien vers le streamlit cloud pour naviguer sans avoir besoin d'installer l'application : https://sirene-dashboard-sirene.streamlit.app/
 
 ## Onglets
 
@@ -22,6 +24,16 @@ pip install -r requirements.txt
 python prep_data.py  # ~20 min, telecharge ~3 Go
 python -m streamlit run app.py
 ```
+
+## Mise à jour des données (non automatique car fichiers trop lourds pour Streamlit cloud)
+
+```bash
+python prep_data.py
+git add -f data/*.parquet
+git commit -m "data: maj mensuelle"
+git push
+```
+
 
 ## Fichiers generes par prep_data.py
 
